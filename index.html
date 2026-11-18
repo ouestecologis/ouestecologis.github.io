@@ -79,6 +79,9 @@ svg.ex{width:100%;height:auto;background:#fbfcfe;border:1px solid var(--bord);bo
 .plustard b{font-size:.88rem}
 .plustard p{margin:4px 0 10px;font-size:.82rem;color:var(--gris)}
 .btn2{width:100%;background:#fff;color:var(--bleu);border:1.5px solid var(--bleu);border-radius:10px;padding:11px;font-weight:700;font-family:inherit;font-size:.9rem;cursor:pointer}
+.btn3{width:100%;background:var(--bleu);color:#fff;border:none;border-radius:10px;padding:13px;font-weight:700;font-family:inherit;font-size:.95rem;cursor:pointer}
+.btn3:active{transform:scale(.98);background:var(--bleu-f)}
+.btn3:disabled{opacity:.7}
 .check{display:flex;gap:10px;align-items:flex-start;margin-top:4px;font-size:.8rem;color:var(--gris)}
 .check input{width:20px;height:20px;flex:none;accent-color:var(--bleu);margin-top:1px}
 .go{width:100%;background:var(--bleu);color:#fff;border:none;border-radius:12px;padding:16px;font-size:1.02rem;font-weight:800;font-family:inherit;cursor:pointer;letter-spacing:.01em;margin-top:14px;text-transform:uppercase}
@@ -204,10 +207,8 @@ footer{text-align:center;font-size:.72rem;color:var(--gris);padding:4px 16px 26p
 
     <div class="plustard">
       <b>Pas encore vos cotes ?</b>
-      <p>Enregistrez votre demande : vous recevez par e-mail un lien personnel pour la reprendre plus tard, déjà remplie, et ajouter votre croquis coté.</p>
-      <label class="l" for="email2" style="margin-top:0">Votre e-mail pour recevoir le lien</label>
-      <input type="email" id="email2" inputmode="email" autocomplete="email" placeholder="vous@exemple.fr">
-      <button type="button" class="btn2" style="margin-top:10px" onclick="plusTard()">Enregistrer et recevoir mon lien</button>
+      <p>Enregistrez votre demande et gardez votre lien personnel : en l'ouvrant plus tard, tout sera déjà rempli, il ne restera qu'à ajouter votre croquis coté.</p>
+      <button type="button" class="btn3" id="bPlusTard" onclick="plusTard()">Enregistrer ma demande</button>
     </div>
   </section>
 
@@ -223,14 +224,12 @@ footer{text-align:center;font-size:.72rem;color:var(--gris);padding:4px 16px 26p
   <div class="rond"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
   <h2 id="merciTitre">Demande bien reçue</h2>
   <p class="note" id="merciTxt" style="font-size:.92rem">Stéphane Renaud étudie votre maison et vous adresse votre devis estimatif très rapidement.</p>
-  <div id="lienBox" class="hide" style="margin-top:16px;text-align:left">
+  <div id="lienBox" class="hide" style="margin-top:18px;text-align:left">
     <label class="l">Votre lien personnel</label>
     <input type="text" id="lienPerso" readonly onclick="this.select()" style="font-size:.8rem;color:var(--bleu)">
-    <div class="row" style="margin-top:8px">
-      <button type="button" class="btn2" onclick="copierLien()">Copier</button>
-      <button type="button" class="btn2" onclick="lienSMS()">Par SMS</button>
-      <button type="button" class="btn2" onclick="garderLien()">Partager</button>
-    </div>
+    <button type="button" class="btn3" id="bSMS" style="margin-top:10px" onclick="lienSMS()">Recevoir mon lien par SMS</button>
+    <button type="button" class="btn2" id="bMail" style="margin-top:8px" onclick="lienMail()">M'envoyer mon lien par e-mail</button>
+    <button type="button" class="btn2" style="margin-top:8px" onclick="copierLien()" id="bCopie">Copier le lien</button>
   </div>
   <button type="button" class="btn2" style="margin-top:16px" id="merciBtn" onclick="openWA(true)">Envoyer d'autres photos par WhatsApp</button>
 </section>
@@ -319,11 +318,7 @@ async function load(){
   }catch(e){}
 }
 function raz(){ try{ localStorage.removeItem(CLE); localStorage.removeItem(CLE + "_photos"); }catch(e){} location.href = location.pathname + location.search.replace(/[?&]merci=1/,""); }
-document.addEventListener("input", e => {
-  if (e.target.id === "email2") $("email").value = $("email2").value;
-  if (e.target.id === "email") $("email2").value = $("email").value;
-  save();
-});
+document.addEventListener("input", save);
 document.addEventListener("change", save);
 
 /* ---- textes ---- */
@@ -342,7 +337,6 @@ function verifContact(){
 }
 function erreur(m){ $("err").textContent = m; if (m) $("err").scrollIntoView({behavior:"smooth", block:"center"}); }
 
-/* ---- finir plus tard : la demande est transmise tout de suite ---- */
 /* lien personnel : contient les réponses du client, pour reprendre sur n'importe quel appareil */
 function b64u(str){ return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
 function deb64u(b){ b = b.replace(/-/g,"+").replace(/_/g,"/"); while (b.length % 4) b += "="; return decodeURIComponent(escape(atob(b))); }
@@ -355,7 +349,7 @@ function lireReprise(){
   try{
     const d = JSON.parse(deb64u(m[1]));
     if (d.n) $("nom").value = d.n; if (d.t) $("tel").value = d.t; if (d.c) $("commune").value = d.c;
-    if (d.e){ $("email").value = d.e; $("email2").value = d.e; }
+    if (d.e) $("email").value = d.e;
     if (d.p) document.querySelectorAll('input[name=pose]').forEach(r => r.checked = r.value === d.p);
     if (d.f !== null && d.f !== undefined) setFin(d.f);
     if (d.k !== null && d.k !== undefined) setCol(d.k);
@@ -366,67 +360,50 @@ function lireReprise(){
   }catch(e){ return false; }
 }
 
-/* ---- finir plus tard : mail au client (avec son lien) + mail à Stéphane ---- */
-async function plusTard(){
-  if (!v("email") && v("email2")) $("email").value = v("email2");
-  const mailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("email"));
+/* ---- finir plus tard : affichage immédiat du lien + mail « À RELANCER » à Stéphane (en arrière-plan) ---- */
+const MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function plusTard(){
   if (!v("nom")){ erreur("Indiquez votre nom (étape 1)."); return; }
-  if (!mailOk && v("tel").replace(/\D/g,"").length < 10){ erreur("Indiquez votre e-mail pour recevoir le lien (ou votre téléphone)."); $("email2").focus(); return; }
-  if (!$("rgpd").checked){ erreur("Cochez la case d'accord pour être recontacté(e), en bas de page."); return; }
+  if (v("tel").replace(/\D/g,"").length < 10 && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("email"))){ erreur("Indiquez votre téléphone (étape 1)."); return; }
+  if (!$("rgpd").checked){ erreur("Cochez la case d'accord pour être recontacté(e), juste en dessous."); return; }
   erreur("");
+  const b = $("bPlusTard"); b.disabled = true; b.textContent = "Enregistré ✓";
   const lien = lienReprise();
-  const ok = await envoiPartiel(lien, mailOk);
-  save();
+  envoiPartiel(lien);          // pas d'attente : la page suivante s'affiche tout de suite
+  partielEnvoye = true; save();
   $("f").classList.add("hide"); $("merci").classList.remove("hide"); window.scrollTo(0,0);
   $("merciTitre").textContent = "Demande enregistrée";
-  $("merciTxt").textContent = (mailOk && ok)
-    ? `Un e-mail avec votre lien personnel vient d'être envoyé à ${v("email")} (pensez à regarder dans les indésirables). Quand votre croquis coté est prêt, ouvrez ce lien : votre demande sera déjà remplie.`
-    : `Gardez ce lien personnel : quand votre croquis coté est prêt, ouvrez-le, votre demande sera déjà remplie. Vous pouvez vous l'envoyer par SMS.`;
+  $("merciTxt").textContent = "Gardez votre lien personnel : quand votre croquis coté est prêt, ouvrez-le, votre demande sera déjà remplie.";
   $("lienPerso").value = lien; $("lienBox").classList.remove("hide");
+  $("bSMS").classList.toggle("hide", !MOBILE);
+  $("bMail").classList.toggle("hide", MOBILE);
   $("merciBtn").classList.add("hide");
 }
-async function envoiPartiel(lien, mailOk){
-  const prenom = v("nom").split(" ")[0];
+function envoiPartiel(lien){
   const corps = {
     _subject: `⏳ À RELANCER – ${v("nom")} – ${v("commune")} (cotes à venir)`, _template: "box", _captcha: "false",
-    "Statut": "Demande enregistrée, le client doit encore envoyer ses cotes et photos",
-    "Réalisation": pose() || "non précisée", "Nom": v("nom"), "Téléphone": v("tel"), "Commune": v("commune"),
-    "Finition": finNom(), "Couleur": colNom(), "Source": SOURCE,
+    "Statut": "Demande enregistrée : le client doit encore envoyer ses cotes et ses photos",
+    "Réalisation": pose() || "non précisée", "Nom": v("nom"), "Téléphone": v("tel"), "E-mail du client": v("email"),
+    "Commune": v("commune"), "Finition": finNom(), "Couleur": colNom(), "Source": SOURCE,
     "Lien de reprise du client": lien
   };
-  if (mailOk){
-    corps.email = v("email");      // champ « email » : FormSubmit envoie la réponse automatique à cette adresse
-    corps._autoresponse =
-`Bonjour ${prenom},
-
-Votre demande d'estimation pour l'isolation de vos murs par l'extérieur est bien enregistrée.
-
-Quand votre croquis avec les cotes est prêt, ouvrez votre lien personnel : votre demande sera déjà remplie, il ne restera qu'à ajouter vos photos et votre croquis.
-
-${lien}
-
-À très bientôt,
-Stéphane Renaud
-Ouest Eco-Logis · 06 45 62 42 85`;
-  }
   try{
-    const r = await fetch("https://formsubmit.co/ajax/" + FORM_ID, { method:"POST", headers:{ "Content-Type":"application/json", Accept:"application/json" }, body: JSON.stringify(corps) });
-    const j = await r.json().catch(() => ({}));
-    partielEnvoye = r.ok && String(j.success) !== "false"; return partielEnvoye;
-  }catch(_){ return false; }
+    fetch("https://formsubmit.co/ajax/" + FORM_ID, { method:"POST", keepalive:true,
+      headers:{ "Content-Type":"application/json", Accept:"application/json" }, body: JSON.stringify(corps) }).catch(() => {});
+  }catch(_){}
 }
 async function copierLien(){
-  try{ await navigator.clipboard.writeText($("lienPerso").value); alert("Lien copié"); }
+  try{ await navigator.clipboard.writeText($("lienPerso").value); }
   catch(e){ $("lienPerso").select(); document.execCommand("copy"); }
+  $("bCopie").textContent = "Lien copié ✓";
 }
+const MSG = () => "Mon lien pour terminer ma demande d'estimation Ouest Eco-Logis : " + $("lienPerso").value;
 function lienSMS(){
-  const t = v("tel").replace(/\s/g,"");
-  location.href = `sms:${t}?body=${encodeURIComponent("Mon lien pour terminer ma demande d'estimation Ouest Eco-Logis : " + $("lienPerso").value)}`;
+  const t = v("tel").replace(/[^\d+]/g,"");
+  location.href = `sms:${t}${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(MSG())}`;
 }
-async function garderLien(){
-  const url = $("lienPerso").value || lienReprise();
-  if (navigator.share){ try{ await navigator.share({ title:"Ma demande d'estimation – Ouest Eco-Logis", url }); }catch(e){} }
-  else copierLien();
+function lienMail(){
+  location.href = `mailto:${encodeURIComponent(v("email"))}?subject=${encodeURIComponent("Ma demande d'estimation Ouest Eco-Logis")}&body=${encodeURIComponent(MSG())}`;
 }
 
 /* ---- envoi complet ---- */
@@ -468,7 +445,6 @@ function openWA(apres){
   }
   await load();
   lireReprise();
-  if (v("email") && !v("email2")) $("email2").value = v("email");
   if (!v("commune")){ if (P.get("commune")) $("commune").value = P.get("commune"); else if (SLUG) $("commune").value = nomDeSlug(SLUG); }
 })();
 </script>
